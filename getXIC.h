@@ -9,9 +9,9 @@
 #include "XRawfile2_x64.h"
 
 struct peakInfo{
-    double intensity;
-    double area;
-    int index;
+	double intensity;
+	double area;
+	int index;
 };
 
 std::vector< std::vector< std::pair<double, double> > > getXIC(std::string &fullFileName, double mz, float rt, int charge, bool boxCar);

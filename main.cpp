@@ -6,7 +6,7 @@
 
 int main(int argc, char* argv[]) {
 
-	if(argc<6){
+	if(argc<7){
 		std::cout << "Not enough arguments\n";
 
 		return 0;
@@ -17,16 +17,17 @@ int main(int argc, char* argv[]) {
 		double mz = std::stod(argv[3]);
 		float rt = std::stof(argv[4]);
 		int charge = std::stoi(argv[5]);
+		float mzTolerance = std::stoi(argv[6]);
 
 		std::string outputCsvName;
-		if(argc==7){
-			outputCsvName = argv[6];
+		if(argc==8){
+			outputCsvName = argv[7];
 		}
 
-		std::vector< std::vector< std::pair<double, double> > > timeIntIstopoes = getXIC(fullFileName, mz, rt, charge, boxCar);
+		std::vector< std::vector< std::pair<double, double> > > timeIntIstopoes = getXIC(fullFileName, mz, rt, charge, boxCar, mzTolerance);
 
 
-		if(argc<7){
+		if(argc<8){
 			for(int i=0; i<3; ++i){
 				std::string fileName = "istope" + std::to_string(i) + ".csv";
 
@@ -35,7 +36,6 @@ int main(int argc, char* argv[]) {
 				for(int j=0, size=timeIntIstopoes[i].size(); j<size; ++j){
 					file << timeIntIstopoes[i][j].first << "," << timeIntIstopoes[i][j].second << "\n";
 				}
-				
 			}
 		} else{
 			for(int i=0; i<3; i++){
@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
 				for(int j=0, size=timeIntIstopoes[i].size(); j<size; ++j){
 					file << timeIntIstopoes[i][j].first << "," << timeIntIstopoes[i][j].second << "\n";
 				}
-			}		
+			}
 		}
 	}
 

@@ -1,13 +1,26 @@
+#ifdef _DEBUG
+
+# pragma comment(lib, "comsuppwd.lib")
+
+#else
+
+# pragma comment(lib, "comsuppw.lib")
+
+#endif
+
+# pragma comment(lib, "wbemuuid.lib")
 #include <iostream>
 #include <string>
 #include <fstream>
 #include <wchar.h>
 #include <time.h>
 #include <numeric>
+#include <comutil.h>
 
 #include "getXIC.h"
 
-std::vector< std::vector< std::pair<double, double> > > getXIC(std::string &fullFileName, double mz, float rt, int charge, bool boxCar){
+
+std::vector< std::vector< std::pair<double, double> > > getXIC(std::string &fullFileName, double mz, float rt, int charge, bool boxCar, float mzTolerance){
 
 	IXRawfile5* pISL;
 
@@ -20,18 +33,19 @@ std::vector< std::vector< std::pair<double, double> > > getXIC(std::string &full
 	BSTR filter = NULL;
 	long scanNumber = 1;
 	long nRet = pISL->GetFilterForScanNum(scanNumber,&filter);
+	//char* filterString = _com_util::ConvertBSTRToString(filter);
+	//std::cout << filterString << "\n";
 
 	std::vector<double> peakAreas;
 
-	double mzWindow = 7; // This should be user define as a parameter
 	float rtWindow = 1.5; // This should be user define as a parameter
 
 	std::vector< std::pair<double, double> > timeIntPairs;
 	std::vector< std::vector< std::pair<double, double> > > timeIntIsotopes;
 
 	// First isotope
-	double mzLower = mz - (mz * mzWindow) / 1000000;
-	double mzUpper = mz + (mz * mzWindow) / 1000000;
+	double mzLower = mz - (mz * mzTolerance) / 1000000;
+	double mzUpper = mz + (mz * mzTolerance) / 1000000;
 	std::cout << "Isotope 1: " << mzLower << " - " << mzUpper << "\n";
 	std::wstring mzRange = std::to_wstring(mzLower);
 	mzRange=mzRange+std::wstring(L"-");
@@ -46,8 +60,8 @@ std::vector< std::vector< std::pair<double, double> > > getXIC(std::string &full
 
 	// Second isotope
 	mz = mz + (1.0022 / charge);
-	mzLower = mz - (mz * mzWindow) / 1000000;
-	mzUpper = mz + (mz * mzWindow) / 1000000;
+	mzLower = mz - (mz * mzTolerance) / 1000000;
+	mzUpper = mz + (mz * mzTolerance) / 1000000;
 	std::cout << "Isotope 2: " << mzLower << " - " << mzUpper << "\n";
 	mzRange = std::to_wstring(mzLower);
 	mzRange=mzRange+std::wstring(L"-");
@@ -60,8 +74,8 @@ std::vector< std::vector< std::pair<double, double> > > getXIC(std::string &full
 
 	// Third isotope
 	mz = mz + (1.0022 / charge);
-	mzLower = mz - (mz * mzWindow) / 1000000;
-	mzUpper = mz + (mz * mzWindow) / 1000000;
+	mzLower = mz - (mz * mzTolerance) / 1000000;
+	mzUpper = mz + (mz * mzTolerance) / 1000000;
 	std::cout << "Isotope 3: " << mzLower << " - " << mzUpper << "\n";
 	mzRange = std::to_wstring(mzLower);
 	mzRange=mzRange+std::wstring(L"-");
@@ -233,23 +247,29 @@ void peakHeight(std::vector< std::vector<std::pair<double, double> > > &timeIntI
 
 	std::vector<int> listOfPeaks;
 
-	for(int slidingWindowIndex=6; slidingWindowIndex<numIndices-6; slidingWindowIndex++){	//
-		int higherThan = 0;																	//
-		for(int index=slidingWindowIndex-6; index<slidingWindowIndex; index++){				//
-			if(isotope1[slidingWindowIndex].second > isotope1[index].second){				//
-				higherThan++;																//
-			}																				//  Create list of indices corresponding to found peaks.
-		}																					//
-		if(higherThan>5){																	//
-			higherThan=0;																	//
-			for(int index=slidingWindowIndex+1; index<=slidingWindowIndex+6; index++){		//  A peak is deemed found if the central intensity is greater
-				if(isotope1[slidingWindowIndex].second > isotope1[index].second){			//  than any of the 6 intensities below AND greater than any of the
-					higherThan++;															//  6 intensities above.
-				}																			//
-			}																				//
-			if(higherThan>5) listOfPeaks.push_back(slidingWindowIndex);						//
-		}																					//
-	}																						//
+	for(int slidingWindowIndex=6; slidingWindowIndex<numIndices-6; slidingWindowIndex++){
+		//First let's do a basic check that this point is at least at a local maximum about 3 points
+		if(!(	(isotope1[slidingWindowIndex].second>=isotope1[slidingWindowIndex-1].second) &&
+				(isotope1[slidingWindowIndex].second>=isotope1[slidingWindowIndex+1].second))){
+			continue;
+		}
+
+		int higherThan = 0;
+		for(int index=slidingWindowIndex-6; index<slidingWindowIndex; index++){
+			if(isotope1[slidingWindowIndex].second > isotope1[index].second){
+				higherThan++;
+			}
+		}
+		if(higherThan>2){
+			higherThan=0;
+			for(int index=slidingWindowIndex+1; index<=slidingWindowIndex+6; index++){
+				if(isotope1[slidingWindowIndex].second > isotope1[index].second){
+					higherThan++;
+				}
+			}
+			if(higherThan>2) listOfPeaks.push_back(slidingWindowIndex);
+		}
+	}
 
 	int numPeaks = listOfPeaks.size();
 	double bestArea = 0;
@@ -270,13 +290,12 @@ void peakHeight(std::vector< std::vector<std::pair<double, double> > > &timeIntI
 			int lowerIndex = intensityIndex;
 
 			intensityIndex = listOfPeaks[peakIndex];
-			while(timeIntIsotopes[isotopeIndex][intensityIndex].second>peakIntensity/2 && intensityIndex<numIndices){
+			while(timeIntIsotopes[isotopeIndex][intensityIndex].second>peakIntensity/2 && intensityIndex<numIndices-1){
 				intensityIndex++;
 			}
 			int upperIndex = intensityIndex;
 
-			double peakWidth = (upperIndex-lowerIndex)*60;
-			double peakArea = peakWidth*timeIntIsotopes[isotopeIndex][listOfPeaks[peakIndex]].second;
+			double peakArea = getPeakArea(upperIndex, lowerIndex, numIndices, peakIntensity, listOfPeaks[peakIndex]);
 
 			peakAreas.push_back(peakArea);
 		}
@@ -328,4 +347,26 @@ void getError(){
 
 	std::cout << message << std::endl;
 
+}
+
+double getPeakArea(int upperIndex, int lowerIndex, int numIndices, double peakIntensity, int peakIndex){
+
+	double peakWidth=0, peakArea=0;
+	//If the half maximum can't be found to the left, then we will use the half maximum to the right and multiple by 2, and visa-versa
+	//If the half maximum can't be found to the left AND the right, then this suggests a peak width wider than our XIC window - we can treat this as a bad peak and report its areas as zero
+	if(lowerIndex==0){
+		if(upperIndex==numIndices-1){
+			return peakArea;
+		} else{
+			peakWidth = (upperIndex-peakIndex)*2*60;
+		}
+	} else if(upperIndex==numIndices-1){
+		peakWidth = (peakIndex-lowerIndex)*2*60;
+	} else{
+		peakWidth = (upperIndex-lowerIndex)*60;
+	}
+
+	peakArea = peakWidth*peakIntensity;
+
+	return peakArea;
 }

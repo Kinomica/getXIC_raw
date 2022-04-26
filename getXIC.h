@@ -14,7 +14,7 @@ struct peakInfo{
 	int index;
 };
 
-std::vector< std::vector< std::pair<double, double> > > getXIC(std::string &fullFileName, double mz, float rt, int charge, bool boxCar);
+std::vector< std::vector< std::pair<double, double> > > getXIC(std::string &fullFileName, double mz, float rt, int charge, bool boxCar, float mzTolerance);
 
 void openRawFile(std::wstring wRawFile, IXRawfile5* &pISL);
 
@@ -25,5 +25,7 @@ void peakHeight(std::vector <std::vector<std::pair<double, double> > > &timeIntI
 void outputTimeIntPairs(std::vector<std::pair<double, double> > &timeIntPairs, int isotopeNum);
 
 void getError();
+
+double getPeakArea(int upperIndex, int lowerIndex, int numIndices, double peakIntensity, int peakIndex);
 
 #endif //PESCAL_QUANTITATION_H

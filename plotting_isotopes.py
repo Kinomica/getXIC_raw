@@ -26,4 +26,7 @@ iso2_plot_l = plt.plot(iso2.iloc[:, 0], iso2.iloc[:, 1])
 
 plt.legend((iso0_plot, iso1_plot,  iso2_plot),
 			("Iso0", "Iso1",  "Iso2"))
+plt.xlabel('Retention time (min)')
+plt.ylabel('Intensities')
+plt.title("XIC ")
 plt.show()
